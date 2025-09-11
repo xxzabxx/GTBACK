@@ -1,0 +1,13 @@
+[build]
+cmd = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = "python src/main.py"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+
+[env]
+FLASK_ENV = "production"
+PORT = { default = "5000" }
+
