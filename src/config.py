@@ -16,8 +16,15 @@ class Config:
     SUPABASE_URL = os.getenv('SUPABASE_URL')
     SUPABASE_KEY = os.getenv('SUPABASE_KEY')
     
-    # Database Configuration
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'grimm_trading.db')}")
+    # Database Configuration - Use PostgreSQL if DATABASE_URL is provided (Railway), otherwise SQLite
+    database_url = os.getenv('DATABASE_URL')
+    if database_url and database_url.startswith('postgresql'):
+        SQLALCHEMY_DATABASE_URI = database_url
+    else:
+        # For local development, use SQLite in a writable location
+        db_path = os.path.join(os.path.expanduser('~'), 'grimm_trading.db')
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
+    
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # CORS Configuration
@@ -35,6 +42,13 @@ class ProductionConfig(Config):
     """Production configuration"""
     DEBUG = False
     TESTING = False
+    
+    # Ensure we're using PostgreSQL in production
+    database_url = os.getenv('DATABASE_URL')
+    if database_url and database_url.startswith('postgresql'):
+        SQLALCHEMY_DATABASE_URI = database_url
+    else:
+        raise ValueError("PostgreSQL DATABASE_URL is required for production")
 
 class TestingConfig(Config):
     """Testing configuration"""
@@ -49,4 +63,3 @@ config = {
     'testing': TestingConfig,
     'default': DevelopmentConfig
 }
-
