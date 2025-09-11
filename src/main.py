@@ -52,12 +52,12 @@ def create_app(config_name=None):
     # Create database tables
     with app.app_context():
         try:
-            # Run migration first
+            # Run complete schema migration
             sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-            from run_migration import run_migration
-            run_migration()
+            from src.migrations.create_complete_schema import run_complete_migration
+            run_complete_migration()
             
-            # Then create any new tables
+            # Then create any additional tables via SQLAlchemy
             db.create_all()
             print("✅ Database initialized successfully")
         except Exception as e:

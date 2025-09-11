@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime, Text, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -8,7 +8,7 @@ import uuid
 class User(db.Model):
     __tablename__ = 'users'
     
-    # Only include columns that definitely exist in the database
+    # Match the complete schema we just created
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(String(50), unique=True, nullable=False)
     email = Column(String(255), unique=True, nullable=False)
@@ -22,6 +22,17 @@ class User(db.Model):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_login = Column(DateTime(timezone=True))
+    email_verified = Column(Boolean, default=False)
+    email_verification_token = Column(String(255))
+    password_reset_token = Column(String(255))
+    password_reset_expires = Column(DateTime(timezone=True))
+    timezone = Column(String(50), default='America/New_York')
+    preferred_language = Column(String(10), default='en')
+    avatar_url = Column(Text)
+    bio = Column(Text)
+    default_watchlist_id = Column(UUID(as_uuid=True))
+    notification_preferences = Column(JSON, default={'email': True, 'push': True, 'sms': False})
+    trading_preferences = Column(JSON, default={'risk_level': 'medium', 'position_size': 'small'})
 
     @staticmethod
     def create_user(username, email, password, first_name=None, last_name=None):
@@ -54,7 +65,12 @@ class User(db.Model):
             'is_active': self.is_active,
             'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'email_verified': self.email_verified,
+            'timezone': self.timezone,
+            'preferred_language': self.preferred_language,
+            'avatar_url': self.avatar_url,
+            'bio': self.bio
         }
 
     def has_permission(self, feature):
