@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from werkzeug.security import generate_password_hash, check_password_hash
-from src.config import db
+from src.database import db
 import uuid
 
 class User(db.Model):

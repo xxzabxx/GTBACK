@@ -1,7 +1,8 @@
 from functools import wraps
 from flask import request, jsonify, g
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
-from src.models.user import User, db
+from src.database import db
+from src.models.user import User
 
 def require_permission(feature):
     """Decorator to require specific permission for a route"""

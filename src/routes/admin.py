@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from datetime import datetime, timedelta
-from src.models.user import User, Watchlist, Alert, db
+from src.database import db
+from src.models.user import User
 from src.middleware.permissions import require_admin
 
 admin_bp = Blueprint('admin', __name__)
