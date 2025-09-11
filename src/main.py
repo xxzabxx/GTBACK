@@ -51,11 +51,21 @@ def create_app(config_name=None):
     
     # Create database tables
     with app.app_context():
-        db.create_all()
+        try:
+            # Run migration first
+            sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+            from run_migration import run_migration
+            run_migration()
+            
+            # Then create any new tables
+            db.create_all()
+            print("✅ Database initialized successfully")
+        except Exception as e:
+            print(f"⚠️  Database initialization warning: {str(e)}")
     
     # Health check endpoint
     @app.route('/api/health')
-    def health():
+    def health_check():
         return jsonify({
             'status': 'healthy',
             'service': 'grimm-trading-backend',
