@@ -27,8 +27,8 @@ class Config:
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # CORS Configuration - Allow Netlify frontend and local development
-    cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173,https://grimmtrade.netlify.app')
+    # CORS Configuration - Allow all frontend domains
+    cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173,https://grimmtrade.netlify.app,https://grimmtrading.com')
     CORS_ORIGINS = cors_origins.split(',')
     
     # API Keys
