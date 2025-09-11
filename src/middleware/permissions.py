@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import request, jsonify, g
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
-from models.user import User, db
+from src.models.user import User, db
 
 def require_permission(feature):
     """Decorator to require specific permission for a route"""
@@ -14,7 +14,7 @@ def require_permission(feature):
                 current_user_id = get_jwt_identity()
                 
                 # Get user from database
-                user = User.query.get(current_user_id)
+                user = User.query.filter_by(id=current_user_id).first()
                 if not user:
                     return jsonify({'error': 'User not found'}), 404
                 
@@ -53,7 +53,7 @@ def require_admin():
                 current_user_id = get_jwt_identity()
                 
                 # Get user from database
-                user = User.query.get(current_user_id)
+                user = User.query.filter_by(id=current_user_id).first()
                 if not user:
                     return jsonify({'error': 'User not found'}), 404
                 
@@ -77,7 +77,7 @@ def get_current_user():
     try:
         verify_jwt_in_request()
         current_user_id = get_jwt_identity()
-        return User.query.get(current_user_id)
+        return User.query.filter_by(id=current_user_id).first()
     except:
         return None
 

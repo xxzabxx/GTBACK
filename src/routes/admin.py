@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from datetime import datetime, timedelta
-from models.user import User, Watchlist, Alert, db, TIER_PERMISSIONS
-from middleware.permissions import require_admin
+from src.models.user import User, Watchlist, Alert, db
+from src.middleware.permissions import require_admin
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -71,7 +71,7 @@ def get_all_users():
 def get_user_details(user_id):
     """Get detailed user information"""
     try:
-        user = User.query.get_or_404(user_id)
+        user = User.query.filter_by(id=user_id).first_or_404()
         
         # Get user's watchlists and alerts
         watchlists = [wl.to_dict() for wl in user.watchlists]
@@ -96,7 +96,7 @@ def get_user_details(user_id):
 def update_user_tier(user_id):
     """Update user's subscription tier"""
     try:
-        user = User.query.get_or_404(user_id)
+        user = User.query.filter_by(id=user_id).first_or_404()
         data = request.get_json()
         
         new_tier = data.get('tier')
@@ -131,7 +131,7 @@ def update_user_tier(user_id):
 def update_user_status(user_id):
     """Update user's active status"""
     try:
-        user = User.query.get_or_404(user_id)
+        user = User.query.filter_by(id=user_id).first_or_404()
         data = request.get_json()
         
         is_active = data.get('is_active')
@@ -157,7 +157,7 @@ def update_user_status(user_id):
 def update_admin_status(user_id):
     """Grant or revoke admin privileges"""
     try:
-        user = User.query.get_or_404(user_id)
+        user = User.query.filter_by(id=user_id).first_or_404()
         data = request.get_json()
         
         is_admin = data.get('is_admin')
@@ -278,7 +278,7 @@ def get_tier_info():
 def delete_user(user_id):
     """Delete a user account (soft delete by deactivating)"""
     try:
-        user = User.query.get_or_404(user_id)
+        user = User.query.filter_by(id=user_id).first_or_404()
         
         # Prevent deleting admin users
         if user.is_admin:

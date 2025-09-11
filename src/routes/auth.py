@@ -53,14 +53,13 @@ def register():
         if User.query.filter_by(email=email).first():
             return jsonify({'error': 'Email already registered'}), 409
         
-        # Create new user
-        user = User(
+        # Create new user using the static method
+        user = User.create_user(
             username=username,
             email=email,
             first_name=data.get('first_name', '').strip(),
             last_name=data.get('last_name', '').strip()
         )
-        user.set_password(password)
         
         db.session.add(user)
         db.session.commit()
@@ -93,10 +92,8 @@ def login():
         username = data['username'].strip()
         password = data['password']
         
-        # Find user by username or email
-        user = User.query.filter(
-            (User.username == username) | (User.email == username)
-        ).first()
+        # Find user by username or email using static method
+        user = User.find_by_username_or_email(username)
         
         if not user or not user.check_password(password):
             return jsonify({'error': 'Invalid credentials'}), 401
@@ -127,7 +124,7 @@ def refresh():
     """Refresh access token"""
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        user = User.query.filter_by(id=current_user_id).first()
         
         if not user or not user.is_active:
             return jsonify({'error': 'User not found or inactive'}), 404
@@ -147,7 +144,7 @@ def get_profile():
     """Get current user profile"""
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        user = User.query.filter_by(id=current_user_id).first()
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
@@ -165,7 +162,7 @@ def update_profile():
     """Update user profile"""
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        user = User.query.filter_by(id=current_user_id).first()
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
@@ -207,7 +204,7 @@ def change_password():
     """Change user password"""
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        user = User.query.filter_by(id=current_user_id).first()
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
