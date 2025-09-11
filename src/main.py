@@ -8,6 +8,7 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from src.models.user import db
 from src.routes.auth import auth_bp
+from src.routes.admin import admin_bp
 from src.config import config
 
 def create_app(config_name=None):
@@ -33,6 +34,7 @@ def create_app(config_name=None):
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
     
     # JWT error handlers
     @jwt.expired_token_loader
