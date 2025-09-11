@@ -1,217 +1,89 @@
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
-import bcrypt
-import json
+from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql import func
+from werkzeug.security import generate_password_hash, check_password_hash
+from src.config import db
 import uuid
-
-db = SQLAlchemy()
 
 class User(db.Model):
     __tablename__ = 'users'
     
-    # Use UUID type that matches your Supabase schema
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    email = db.Column(db.String(255), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    first_name = db.Column(db.String(100), nullable=True)
-    last_name = db.Column(db.String(100), nullable=True)
-    
-    # Subscription and permissions - match your database exactly
-    subscription_tier = db.Column(db.String(20), default='free')  # free, premium, pro
-    subscription_expires = db.Column(db.DateTime, nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
-    is_admin = db.Column(db.Boolean, default=False)
-    
-    # Tracking fields - match your database column names
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login = db.Column(db.DateTime, nullable=True)
-    email_verified = db.Column(db.Boolean, default=False)  # Use actual column name
-    email_verification_token = db.Column(db.String(255), nullable=True)
-    password_reset_token = db.Column(db.String(255), nullable=True)
-    password_reset_expires = db.Column(db.DateTime, nullable=True)
-    
-    # Profile fields
-    timezone = db.Column(db.String(50), default='America/New_York')
-    preferred_language = db.Column(db.String(10), default='en')
-    avatar_url = db.Column(db.Text, nullable=True)
-    bio = db.Column(db.Text, nullable=True)
-    
-    # Trading preferences
-    default_watchlist_id = db.Column(db.String(36), nullable=True)
-    notification_preferences = db.Column(db.JSON, default=lambda: {"email": True, "push": True, "sms": False})
-    trading_preferences = db.Column(db.JSON, default=lambda: {"risk_level": "medium", "position_size": "small"})
+    # Only include columns that definitely exist in the database
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String(50), unique=True, nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+    subscription_tier = Column(String(20), default='free')
+    subscription_expires = Column(DateTime(timezone=True))
+    is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_login = Column(DateTime(timezone=True))
+    email_verified = Column(Boolean, default=False)
 
-    def __repr__(self):
-        return f'<User {self.username}>'
-
-    def set_password(self, password):
-        """Hash and set password"""
-        salt = bcrypt.gensalt()
-        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    @staticmethod
+    def create_user(username, email, password, first_name=None, last_name=None):
+        """Create a new user with hashed password"""
+        user = User(
+            username=username,
+            email=email,
+            password_hash=generate_password_hash(password),
+            first_name=first_name,
+            last_name=last_name
+        )
+        db.session.add(user)
+        db.session.commit()
+        return user
 
     def check_password(self, password):
-        """Check if provided password matches hash"""
-        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+        """Check if provided password matches the hash"""
+        return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
-        """Convert user to dictionary for JSON serialization"""
+        """Convert user to dictionary for JSON responses"""
         return {
-            'id': self.id,
+            'id': str(self.id),
             'username': self.username,
             'email': self.email,
             'first_name': self.first_name,
             'last_name': self.last_name,
-            'is_active': self.is_active,
-            'is_admin': self.is_admin,
-            'email_verified': self.email_verified,
             'subscription_tier': self.subscription_tier,
             'subscription_expires': self.subscription_expires.isoformat() if self.subscription_expires else None,
+            'is_active': self.is_active,
+            'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
-            'timezone': self.timezone,
-            'preferred_language': self.preferred_language,
-            'avatar_url': self.avatar_url,
-            'bio': self.bio,
-            'notification_preferences': self.notification_preferences,
-            'trading_preferences': self.trading_preferences
+            'email_verified': self.email_verified
         }
-
-    def get_tier_info(self):
-        """Get tier information and permissions"""
-        tier_info = {
-            'free': {
-                'name': 'Free',
-                'features': ['basic_scanners', 'basic_charts', 'basic_news'],
-                'limits': {'watchlists': 1, 'symbols_per_watchlist': 10, 'alerts': 5}
-            },
-            'premium': {
-                'name': 'Premium',
-                'features': ['basic_scanners', 'basic_charts', 'basic_news', 'advanced_scanners', 
-                           'real_time_data', 'unlimited_watchlists', 'trading_room'],
-                'limits': {'watchlists': 5, 'symbols_per_watchlist': 50, 'alerts': 25}
-            },
-            'pro': {
-                'name': 'Pro',
-                'features': ['basic_scanners', 'basic_charts', 'basic_news', 'advanced_scanners',
-                           'real_time_data', 'unlimited_watchlists', 'trading_room', 'level_2_data',
-                           'options_flow', 'ai_alerts', 'api_access'],
-                'limits': {'watchlists': -1, 'symbols_per_watchlist': -1, 'alerts': -1}
-            }
-        }
-        
-        return tier_info.get(self.subscription_tier, tier_info['free'])
 
     def has_permission(self, feature):
-        """Check if user has permission for a specific feature"""
-        tier_info = self.get_tier_info()
-        return feature in tier_info['features']
+        """Check if user has permission for a specific feature based on tier"""
+        if not self.is_active:
+            return False
+            
+        if self.is_admin:
+            return True
+            
+        tier_permissions = {
+            'free': ['basic_charts', 'basic_news'],
+            'premium': ['basic_charts', 'basic_news', 'advanced_charts', 'scanners', 'alerts'],
+            'pro': ['basic_charts', 'basic_news', 'advanced_charts', 'scanners', 'alerts', 'chat', 'premium_data', 'api_access']
+        }
+        
+        return feature in tier_permissions.get(self.subscription_tier, [])
 
     def is_subscription_active(self):
-        """Check if subscription is still active"""
+        """Check if user's subscription is currently active"""
         if self.subscription_tier == 'free':
             return True
         if not self.subscription_expires:
             return False
+        from datetime import datetime
         return datetime.utcnow() < self.subscription_expires
 
-    def get_usage_limits(self):
-        """Get usage limits for current tier"""
-        tier_info = self.get_tier_info()
-        return tier_info['limits']
-
-    def can_create_watchlist(self, current_count):
-        """Check if user can create another watchlist"""
-        limits = self.get_usage_limits()
-        max_watchlists = limits['watchlists']
-        return max_watchlists == -1 or current_count < max_watchlists
-
-    def can_add_symbol_to_watchlist(self, current_count):
-        """Check if user can add another symbol to watchlist"""
-        limits = self.get_usage_limits()
-        max_symbols = limits['symbols_per_watchlist']
-        return max_symbols == -1 or current_count < max_symbols
-
-    def can_create_alert(self, current_count):
-        """Check if user can create another alert"""
-        limits = self.get_usage_limits()
-        max_alerts = limits['alerts']
-        return max_alerts == -1 or current_count < max_alerts
-
-    def update_last_login(self):
-        """Update last login timestamp"""
-        self.last_login = datetime.utcnow()
-
-    def upgrade_subscription(self, new_tier, expires_at=None):
-        """Upgrade user subscription"""
-        valid_tiers = ['free', 'premium', 'pro']
-        if new_tier in valid_tiers:
-            self.subscription_tier = new_tier
-            self.subscription_expires = expires_at
-            return True
-        return False
-
-    def downgrade_to_free(self):
-        """Downgrade user to free tier"""
-        self.subscription_tier = 'free'
-        self.subscription_expires = None
-
-    @staticmethod
-    def find_by_username_or_email(identifier):
-        """Find user by username or email"""
-        return User.query.filter(
-            (User.username == identifier) | (User.email == identifier)
-        ).first()
-
-    @staticmethod
-    def create_user(username, email, password, **kwargs):
-        """Create a new user"""
-        user = User(
-            id=str(uuid.uuid4()),
-            username=username,
-            email=email,
-            **kwargs
-        )
-        user.set_password(password)
-        return user
-
-
-# Simplified models for the other tables (we'll expand these later)
-class Watchlist(db.Model):
-    __tablename__ = 'watchlists'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    is_default = db.Column(db.Boolean, default=False)
-    is_public = db.Column(db.Boolean, default=False)
-    color = db.Column(db.String(7), default='#3B82F6')
-    sort_order = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class Alert(db.Model):
-    __tablename__ = 'alerts'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    symbol = db.Column(db.String(10), nullable=False)
-    alert_type = db.Column(db.String(20), nullable=False)  # price, volume, percentage, technical
-    condition_type = db.Column(db.String(20), nullable=False)  # above, below, crosses_above, crosses_below
-    target_value = db.Column(db.Numeric(10, 4), nullable=False)
-    current_value = db.Column(db.Numeric(10, 4))
-    message = db.Column(db.Text)
-    is_active = db.Column(db.Boolean, default=True)
-    is_triggered = db.Column(db.Boolean, default=False)
-    triggered_at = db.Column(db.DateTime)
-    expires_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    notification_methods = db.Column(db.JSON, default=lambda: ["email"])
-    trigger_count = db.Column(db.Integer, default=0)
-    max_triggers = db.Column(db.Integer, default=1)
+    def __repr__(self):
+        return f'<User {self.username}>'
 
