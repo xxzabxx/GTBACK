@@ -24,37 +24,42 @@ def run_complete_migration():
         
         print("🔄 Creating complete database schema...")
         
-        # Create custom types first
+        # Drop existing tables if they exist (in correct order due to foreign keys)
+        cursor.execute("DROP TABLE IF EXISTS user_activity CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS subscription_history CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS user_sessions CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS alerts CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS watchlist_symbols CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS watchlists CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS users CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS system_settings CASCADE;")
+        
+        # Drop existing types if they exist
+        cursor.execute("DROP TYPE IF EXISTS subscription_tier CASCADE;")
+        cursor.execute("DROP TYPE IF EXISTS alert_type CASCADE;")
+        cursor.execute("DROP TYPE IF EXISTS condition_type CASCADE;")
+        
+        print("🗑️  Dropped existing tables and types")
+        
+        # Create custom types
         cursor.execute("""
-            DO $$ BEGIN
-                CREATE TYPE subscription_tier AS ENUM ('free', 'premium', 'pro');
-            EXCEPTION
-                WHEN duplicate_object THEN null;
-            END $$;
+            CREATE TYPE subscription_tier AS ENUM ('free', 'premium', 'pro');
         """)
         
         cursor.execute("""
-            DO $$ BEGIN
-                CREATE TYPE alert_type AS ENUM ('price', 'volume', 'technical', 'news');
-            EXCEPTION
-                WHEN duplicate_object THEN null;
-            END $$;
+            CREATE TYPE alert_type AS ENUM ('price', 'volume', 'technical', 'news');
         """)
         
         cursor.execute("""
-            DO $$ BEGIN
-                CREATE TYPE condition_type AS ENUM ('above', 'below', 'crosses_above', 'crosses_below', 'equals');
-            EXCEPTION
-                WHEN duplicate_object THEN null;
-            END $$;
+            CREATE TYPE condition_type AS ENUM ('above', 'below', 'crosses_above', 'crosses_below', 'equals');
         """)
         
         # Create users table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE users (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 username VARCHAR(50) UNIQUE NOT NULL CHECK (username ~ '^[A-Za-z0-9_]{3,50}$'),
-                email VARCHAR(255) UNIQUE NOT NULL CHECK (email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+                email VARCHAR(255) UNIQUE NOT NULL CHECK (email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'),
                 password_hash VARCHAR(255) NOT NULL,
                 first_name VARCHAR(100),
                 last_name VARCHAR(100),
@@ -81,7 +86,7 @@ def run_complete_migration():
         
         # Create watchlists table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS watchlists (
+            CREATE TABLE watchlists (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 name VARCHAR(100) NOT NULL,
@@ -97,7 +102,7 @@ def run_complete_migration():
         
         # Create watchlist_symbols table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS watchlist_symbols (
+            CREATE TABLE watchlist_symbols (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 watchlist_id UUID NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
                 symbol VARCHAR(10) NOT NULL,
@@ -109,7 +114,7 @@ def run_complete_migration():
         
         # Create alerts table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS alerts (
+            CREATE TABLE alerts (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 symbol VARCHAR(10) NOT NULL,
@@ -132,7 +137,7 @@ def run_complete_migration():
         
         # Create user_sessions table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS user_sessions (
+            CREATE TABLE user_sessions (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 token_hash VARCHAR(255) NOT NULL,
@@ -148,7 +153,7 @@ def run_complete_migration():
         
         # Create subscription_history table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS subscription_history (
+            CREATE TABLE subscription_history (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 tier subscription_tier NOT NULL,
@@ -165,7 +170,7 @@ def run_complete_migration():
         
         # Create user_activity table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS user_activity (
+            CREATE TABLE user_activity (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 action VARCHAR(100) NOT NULL,
@@ -180,7 +185,7 @@ def run_complete_migration():
         
         # Create system_settings table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS system_settings (
+            CREATE TABLE system_settings (
                 key VARCHAR(100) PRIMARY KEY,
                 value JSONB NOT NULL,
                 description TEXT,
@@ -191,21 +196,21 @@ def run_complete_migration():
         
         # Create indexes for performance
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-            CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-            CREATE INDEX IF NOT EXISTS idx_users_subscription_tier ON users(subscription_tier);
-            CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
-            CREATE INDEX IF NOT EXISTS idx_watchlists_user_id ON watchlists(user_id);
-            CREATE INDEX IF NOT EXISTS idx_watchlist_symbols_watchlist_id ON watchlist_symbols(watchlist_id);
-            CREATE INDEX IF NOT EXISTS idx_watchlist_symbols_symbol ON watchlist_symbols(symbol);
-            CREATE INDEX IF NOT EXISTS idx_alerts_user_id ON alerts(user_id);
-            CREATE INDEX IF NOT EXISTS idx_alerts_symbol ON alerts(symbol);
-            CREATE INDEX IF NOT EXISTS idx_alerts_is_active ON alerts(is_active);
-            CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
-            CREATE INDEX IF NOT EXISTS idx_user_sessions_token_hash ON user_sessions(token_hash);
-            CREATE INDEX IF NOT EXISTS idx_subscription_history_user_id ON subscription_history(user_id);
-            CREATE INDEX IF NOT EXISTS idx_user_activity_user_id ON user_activity(user_id);
-            CREATE INDEX IF NOT EXISTS idx_user_activity_action ON user_activity(action);
+            CREATE INDEX idx_users_email ON users(email);
+            CREATE INDEX idx_users_username ON users(username);
+            CREATE INDEX idx_users_subscription_tier ON users(subscription_tier);
+            CREATE INDEX idx_users_is_active ON users(is_active);
+            CREATE INDEX idx_watchlists_user_id ON watchlists(user_id);
+            CREATE INDEX idx_watchlist_symbols_watchlist_id ON watchlist_symbols(watchlist_id);
+            CREATE INDEX idx_watchlist_symbols_symbol ON watchlist_symbols(symbol);
+            CREATE INDEX idx_alerts_user_id ON alerts(user_id);
+            CREATE INDEX idx_alerts_symbol ON alerts(symbol);
+            CREATE INDEX idx_alerts_is_active ON alerts(is_active);
+            CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
+            CREATE INDEX idx_user_sessions_token_hash ON user_sessions(token_hash);
+            CREATE INDEX idx_subscription_history_user_id ON subscription_history(user_id);
+            CREATE INDEX idx_user_activity_user_id ON user_activity(user_id);
+            CREATE INDEX idx_user_activity_action ON user_activity(action);
         """)
         
         # Create trigger for updated_at timestamps
@@ -220,21 +225,18 @@ def run_complete_migration():
         """)
         
         cursor.execute("""
-            DROP TRIGGER IF EXISTS update_users_updated_at ON users;
             CREATE TRIGGER update_users_updated_at 
                 BEFORE UPDATE ON users 
                 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
         """)
         
         cursor.execute("""
-            DROP TRIGGER IF EXISTS update_watchlists_updated_at ON watchlists;
             CREATE TRIGGER update_watchlists_updated_at 
                 BEFORE UPDATE ON watchlists 
                 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
         """)
         
         cursor.execute("""
-            DROP TRIGGER IF EXISTS update_alerts_updated_at ON alerts;
             CREATE TRIGGER update_alerts_updated_at 
                 BEFORE UPDATE ON alerts 
                 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -253,8 +255,7 @@ def run_complete_migration():
                 ('max_alerts_pro', '500', 'Maximum alerts for pro tier'),
                 ('market_data_delay_free', '15', 'Market data delay in minutes for free tier'),
                 ('market_data_delay_premium', '0', 'Market data delay in minutes for premium tier'),
-                ('market_data_delay_pro', '0', 'Market data delay in minutes for pro tier')
-            ON CONFLICT (key) DO NOTHING;
+                ('market_data_delay_pro', '0', 'Market data delay in minutes for pro tier');
         """)
         
         cursor.close()
