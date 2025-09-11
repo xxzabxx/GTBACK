@@ -27,8 +27,9 @@ class Config:
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # CORS Configuration
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173').split(',')
+    # CORS Configuration - Allow Netlify frontend and local development
+    cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173,https://grimmtrade.netlify.app')
+    CORS_ORIGINS = cors_origins.split(',')
     
     # API Keys
     FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY')
