@@ -43,20 +43,15 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     
-    # Log the DATABASE_URL for debugging
+    # Use PostgreSQL in production
     database_url = os.getenv('DATABASE_URL')
-    print(f"DEBUG: DATABASE_URL = {database_url}")
-    
     if database_url and database_url.startswith('postgresql'):
         SQLALCHEMY_DATABASE_URI = database_url
     elif database_url and database_url.startswith('postgres://'):
         # Railway sometimes uses postgres:// instead of postgresql://
         SQLALCHEMY_DATABASE_URI = database_url.replace('postgres://', 'postgresql://', 1)
     else:
-        # Fallback to SQLite for now to debug
-        print(f"WARNING: Using SQLite fallback. DATABASE_URL = {database_url}")
-        db_path = os.path.join('/tmp', 'grimm_trading.db')
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
+        raise ValueError("PostgreSQL DATABASE_URL is required for production")
 
 class TestingConfig(Config):
     """Testing configuration"""
