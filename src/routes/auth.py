@@ -58,6 +58,7 @@ def register():
         user = User.create_user(
             username=username,
             email=email,
+            password=password,
             first_name=data.get('first_name', '').strip(),
             last_name=data.get('last_name', '').strip()
         )
