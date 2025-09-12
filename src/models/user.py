@@ -63,6 +63,11 @@ class User(db.Model):
             (User.username == identifier) | (User.email == identifier)
         ).first()
 
+    @staticmethod
+    def find_by_id(user_id):
+        """Find user by ID"""
+        return User.query.filter(User.id == user_id).first()
+
     def update_last_login(self):
         """Update the last login timestamp"""
         from datetime import datetime
