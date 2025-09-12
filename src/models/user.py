@@ -52,118 +52,9 @@ class User(db.Model):
         """Check if provided password matches the hash"""
         return check_password_hash(self.password_hash, password)
 
-    def to_dict(self):
-        """Convert user to dictionary for JSON responses"""
-        return {
-            'id': str(self.id),
-            'username': self.username,
-            'email': self.email,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'subscription_tier': self.subscription_tier,
-            'subscription_expires': self.subscription_expires.isoformat() if self.subscription_expires else None,
-            'is_active': self.is_active,
-            'is_admin': self.is_admin,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
-            'email_verified': self.email_verified,
-            'timezone': self.timezone,
-            'preferred_language': self.preferred_language,
-            'avatar_url': self.avatar_url,
-            'bio': self.bio
-        }
-
-    def has_permission(self, feature):
-        """Check if user has permission for a specific feature based on tier"""
-        if not self.is_active:
-            return False
-            
-        if self.is_admin:
-            return True
-            
-        tier_permissions = {
-            'free': ['basic_charts', 'basic_news'],
-            'premium': ['basic_charts', 'basic_news', 'advanced_charts', 'scanners', 'alerts'],
-            'pro': ['basic_charts', 'basic_news', 'advanced_charts', 'scanners', 'alerts', 'chat', 'premium_data', 'api_access']
-        }
-        
-        return feature in tier_permissions.get(self.subscription_tier, [])
-
-    def is_subscription_active(self):
-        """Check if user's subscription is currently active"""
-        if self.subscription_tier == 'free':
-            return True
-        if not self.subscription_expires:
-            return False
-        from datetime import datetime
-        return datetime.utcnow() < self.subscription_expires
-
-    def __repr__(self):
-        return f'<User {self.username}>'
-
-    @staticmethod
-    def create_user(username, email, password, first_name=None, last_name=None):
-        """Create a new user with hashed password"""
-        user = User(
-            username=username,
-            email=email,
-            password_hash=generate_password_hash(password),
-            first_name=first_name,
-            last_name=last_name
-        )
-        db.session.add(user)
-        db.session.commit()
-        return user
-
-    def check_password(self, password):
-        """Check if provided password matches the hash"""
-        return check_password_hash(self.password_hash, password)
-
-    def to_dict(self):
-        """Convert user to dictionary for JSON responses"""
-        return {
-            'id': str(self.id),
-            'username': self.username,
-            'email': self.email,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'subscription_tier': self.subscription_tier,
-            'subscription_expires': self.subscription_expires.isoformat() if self.subscription_expires else None,
-            'is_active': self.is_active,
-            'is_admin': self.is_admin,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
-            'email_verified': self.email_verified
-        }
-
-    def has_permission(self, feature):
-        """Check if user has permission for a specific feature based on tier"""
-        if not self.is_active:
-            return False
-            
-        if self.is_admin:
-            return True
-            
-        tier_permissions = {
-            'free': ['basic_charts', 'basic_news'],
-            'premium': ['basic_charts', 'basic_news', 'advanced_charts', 'scanners', 'alerts'],
-            'pro': ['basic_charts', 'basic_news', 'advanced_charts', 'scanners', 'alerts', 'chat', 'premium_data', 'api_access']
-        }
-        
-        return feature in tier_permissions.get(self.subscription_tier, [])
-
-    def is_subscription_active(self):
-        """Check if user's subscription is currently active"""
-        if self.subscription_tier == 'free':
-            return True
-        if not self.subscription_expires:
-            return False
-        from datetime import datetime
-        return datetime.utcnow() < self.subscription_expires
-
-    def __repr__(self):
-        return f'<User {self.username}>'
-
+    def set_password(self, password):
+        """Set user password with hashing"""
+        self.password_hash = generate_password_hash(password)
 
     @staticmethod
     def find_by_username_or_email(identifier):
@@ -177,10 +68,6 @@ class User(db.Model):
         from datetime import datetime
         self.last_login = datetime.utcnow()
         db.session.commit()
-
-    def set_password(self, password):
-        """Set user password with hashing"""
-        self.password_hash = generate_password_hash(password)
 
     def to_dict(self, include_sensitive=False):
         """Convert user to dictionary for JSON responses"""
@@ -210,4 +97,32 @@ class User(db.Model):
             })
         
         return result
+
+    def has_permission(self, feature):
+        """Check if user has permission for a specific feature based on tier"""
+        if not self.is_active:
+            return False
+            
+        if self.is_admin:
+            return True
+            
+        tier_permissions = {
+            'free': ['basic_charts', 'basic_news'],
+            'premium': ['basic_charts', 'basic_news', 'advanced_charts', 'scanners', 'alerts'],
+            'pro': ['basic_charts', 'basic_news', 'advanced_charts', 'scanners', 'alerts', 'chat', 'premium_data', 'api_access']
+        }
+        
+        return feature in tier_permissions.get(self.subscription_tier, [])
+
+    def is_subscription_active(self):
+        """Check if user's subscription is currently active"""
+        if self.subscription_tier == 'free':
+            return True
+        if not self.subscription_expires:
+            return False
+        from datetime import datetime
+        return datetime.utcnow() < self.subscription_expires
+
+    def __repr__(self):
+        return f'<User {self.username}>'
 
