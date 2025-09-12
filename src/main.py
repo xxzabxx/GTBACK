@@ -36,6 +36,10 @@ def create_app(config_name=None):
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     
+    # Import and register market routes
+    from src.routes.market import market_bp
+    app.register_blueprint(market_bp, url_prefix='/api/market')
+    
     # JWT error handlers
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
