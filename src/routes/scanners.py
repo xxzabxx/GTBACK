@@ -58,8 +58,8 @@ def get_scanner_settings(scanner_type: str) -> dict:
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT setting_value FROM system_settings 
-            WHERE setting_key = %s
+            SELECT value FROM system_settings 
+            WHERE key = %s
         """, (f'scanner_{scanner_type}_settings',))
         
         result = cursor.fetchone()
@@ -84,10 +84,10 @@ def update_scanner_settings(scanner_type: str, settings: dict):
         
         import json
         cursor.execute("""
-            INSERT INTO system_settings (setting_key, setting_value, updated_at)
+            INSERT INTO system_settings (key, value, updated_at)
             VALUES (%s, %s, NOW())
-            ON CONFLICT (setting_key) 
-            DO UPDATE SET setting_value = %s, updated_at = NOW()
+            ON CONFLICT (key) 
+            DO UPDATE SET value = %s, updated_at = NOW()
         """, (f'scanner_{scanner_type}_settings', json.dumps(settings), json.dumps(settings)))
         
         conn.commit()
