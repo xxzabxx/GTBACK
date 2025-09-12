@@ -8,12 +8,20 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models.user import User
 from src.services.scanner_service import ScannerService
 from src.middleware.permissions import require_permission
-from src.database import get_db_connection
+import psycopg2
+import os
 from datetime import datetime
 import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
+
+def get_db_connection():
+    """Get database connection using environment variables"""
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        raise ValueError("DATABASE_URL not found in environment variables")
+    return psycopg2.connect(database_url)
 
 scanners_bp = Blueprint('scanners', __name__)
 scanner_service = ScannerService()
