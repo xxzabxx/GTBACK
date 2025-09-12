@@ -63,8 +63,7 @@ def register():
             last_name=data.get('last_name', '').strip()
         )
         
-        db.session.add(user)
-        db.session.commit()
+        # User is already added and committed in create_user method
         
         # Create access token
         access_token = create_access_token(identity=user.id)
