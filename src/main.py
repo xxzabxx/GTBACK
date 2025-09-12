@@ -40,6 +40,10 @@ def create_app(config_name=None):
     from src.routes.market import market_bp
     app.register_blueprint(market_bp, url_prefix='/api/market')
     
+    # Import and register cache routes
+    from src.routes.cache import cache_bp
+    app.register_blueprint(cache_bp, url_prefix='/api/cache')
+    
     # JWT error handlers
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):

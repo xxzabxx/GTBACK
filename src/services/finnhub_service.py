@@ -1,6 +1,7 @@
 """
 Finnhub API Service for GrimmTrading Platform
 Provides market data integration for Ross Cameron-style momentum trading
+Now with intelligent caching to optimize API usage
 """
 
 import os
@@ -10,12 +11,16 @@ from typing import Dict, List, Optional, Any
 import time
 
 class FinnhubService:
-    """Service class for interacting with Finnhub API"""
+    """Service class for interacting with Finnhub API with caching support"""
     
     def __init__(self):
         self.api_key = os.getenv('FINNHUB_API_KEY')
         self.base_url = 'https://finnhub.io/api/v1'
         self.session = requests.Session()
+        
+        # Import cache after initialization to avoid circular imports
+        from src.services.cache_service import market_cache
+        self.cache = market_cache
         
         if not self.api_key:
             raise ValueError("FINNHUB_API_KEY not found in environment variables")
@@ -37,13 +42,19 @@ class FinnhubService:
     
     def get_quote(self, symbol: str) -> Dict:
         """
-        Get real-time quote for a stock symbol
+        Get real-time quote for a stock symbol with caching
         Returns: Current price, change, percent change, high, low, open, previous close
         """
+        # Try cache first
+        cached_quote = self.cache.get_quote(symbol)
+        if cached_quote:
+            return cached_quote
+        
+        # Fetch from API
         data = self._make_request('quote', {'symbol': symbol})
         
         if data and 'c' in data:
-            return {
+            quote_data = {
                 'symbol': symbol,
                 'current_price': data.get('c', 0),  # Current price
                 'change': data.get('d', 0),         # Change
@@ -54,17 +65,28 @@ class FinnhubService:
                 'previous_close': data.get('pc', 0), # Previous close price
                 'timestamp': int(time.time())
             }
+            
+            # Cache the result
+            self.cache.cache_quote(symbol, quote_data)
+            return quote_data
+        
         return {}
     
     def get_company_profile(self, symbol: str) -> Dict:
         """
-        Get company profile including float data
+        Get company profile including float data with caching
         Returns: Company info, market cap, float, industry, etc.
         """
+        # Try cache first
+        cached_profile = self.cache.get_profile(symbol)
+        if cached_profile:
+            return cached_profile
+        
+        # Fetch from API
         data = self._make_request('stock/profile2', {'symbol': symbol})
         
         if data:
-            return {
+            profile_data = {
                 'symbol': symbol,
                 'name': data.get('name', ''),
                 'ticker': data.get('ticker', symbol),
@@ -79,16 +101,27 @@ class FinnhubService:
                 'weburl': data.get('weburl', ''),
                 'ipo_date': data.get('ipo', '')
             }
+            
+            # Cache the result
+            self.cache.cache_profile(symbol, profile_data)
+            return profile_data
+        
         return {}
     
     def get_candles(self, symbol: str, resolution: str = 'D', days_back: int = 30) -> Dict:
         """
-        Get historical candlestick data
+        Get historical candlestick data with caching
         Args:
             symbol: Stock symbol
             resolution: 1, 5, 15, 30, 60, D, W, M
             days_back: Number of days to look back
         """
+        # Try cache first
+        cached_candles = self.cache.get_candles(symbol, resolution, days_back)
+        if cached_candles:
+            return cached_candles
+        
+        # Fetch from API
         end_time = int(time.time())
         start_time = end_time - (days_back * 24 * 60 * 60)
         
@@ -100,7 +133,7 @@ class FinnhubService:
         })
         
         if data and data.get('s') == 'ok':
-            return {
+            candle_data = {
                 'symbol': symbol,
                 'resolution': resolution,
                 'timestamps': data.get('t', []),
@@ -110,22 +143,33 @@ class FinnhubService:
                 'close': data.get('c', []),
                 'volume': data.get('v', [])
             }
+            
+            # Cache the result
+            self.cache.cache_candles(symbol, resolution, days_back, candle_data)
+            return candle_data
+        
         return {}
     
     def get_market_news(self, category: str = 'general', min_id: int = 0) -> List[Dict]:
         """
-        Get market news
+        Get market news with caching
         Args:
             category: general, forex, crypto, merger
             min_id: Minimum news ID for pagination
         """
+        # Try cache first
+        cached_news = self.cache.get_news(category, min_id)
+        if cached_news:
+            return cached_news
+        
+        # Fetch from API
         data = self._make_request('news', {
             'category': category,
             'minId': min_id
         })
         
         if isinstance(data, list):
-            return [{
+            news_data = [{
                 'id': item.get('id', 0),
                 'headline': item.get('headline', ''),
                 'summary': item.get('summary', ''),
@@ -136,12 +180,23 @@ class FinnhubService:
                 'category': item.get('category', ''),
                 'related': item.get('related', '')
             } for item in data]
+            
+            # Cache the result
+            self.cache.cache_news(category, news_data, min_id)
+            return news_data
+        
         return []
     
     def get_company_news(self, symbol: str, days_back: int = 7) -> List[Dict]:
         """
-        Get company-specific news
+        Get company-specific news with caching
         """
+        # Try cache first
+        cached_news = self.cache.get_company_news(symbol, days_back)
+        if cached_news:
+            return cached_news
+        
+        # Fetch from API
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
         
@@ -152,7 +207,7 @@ class FinnhubService:
         })
         
         if isinstance(data, list):
-            return [{
+            news_data = [{
                 'headline': item.get('headline', ''),
                 'summary': item.get('summary', ''),
                 'source': item.get('source', ''),
@@ -162,14 +217,23 @@ class FinnhubService:
                 'category': item.get('category', ''),
                 'related': item.get('related', '')
             } for item in data]
+            
+            # Cache the result
+            self.cache.cache_company_news(symbol, news_data, days_back)
+            return news_data
+        
         return []
     
     def get_market_status(self, exchange: str = 'US') -> Dict:
         """
-        Get market status (open/closed)
+        Get market status (open/closed) with caching
         """
-        # Finnhub doesn't have a direct market status endpoint
-        # We'll determine based on current time and trading hours
+        # Try cache first
+        cached_status = self.cache.get_market_status(exchange)
+        if cached_status:
+            return cached_status
+        
+        # Calculate market status
         now = datetime.now()
         
         # US market hours: 9:30 AM - 4:00 PM ET (Monday-Friday)
@@ -181,7 +245,7 @@ class FinnhubService:
             is_trading_day = weekday < 5  # Monday-Friday
             is_trading_hours = 9 <= hour < 16  # 9 AM - 4 PM (simplified)
             
-            return {
+            status_data = {
                 'exchange': exchange,
                 'is_open': is_trading_day and is_trading_hours,
                 'session': 'market' if is_trading_hours else 'closed',
@@ -190,23 +254,71 @@ class FinnhubService:
                 'next_open': None,  # Could be calculated
                 'next_close': None  # Could be calculated
             }
+            
+            # Cache the result
+            self.cache.cache_market_status(exchange, status_data)
+            return status_data
         
         return {'exchange': exchange, 'is_open': False}
     
     def search_symbols(self, query: str) -> List[Dict]:
         """
-        Search for stock symbols
+        Search for stock symbols with caching
         """
+        # Try cache first
+        cached_results = self.cache.get_search(query)
+        if cached_results:
+            return cached_results
+        
+        # Fetch from API
         data = self._make_request('search', {'q': query})
         
         if data and 'result' in data:
-            return [{
+            search_results = [{
                 'symbol': item.get('symbol', ''),
                 'description': item.get('description', ''),
                 'display_symbol': item.get('displaySymbol', ''),
                 'type': item.get('type', '')
             } for item in data['result']]
+            
+            # Cache the result
+            self.cache.cache_search(query, search_results)
+            return search_results
+        
         return []
+    
+    def get_batch_quotes(self, symbols: List[str]) -> Dict:
+        """
+        Get quotes for multiple symbols with intelligent caching
+        """
+        # Try cache first
+        cached_batch = self.cache.get_batch_quotes(symbols)
+        if cached_batch:
+            return cached_batch
+        
+        # Fetch individual quotes (some may be cached)
+        batch_results = {}
+        uncached_symbols = []
+        
+        # Check cache for each symbol
+        for symbol in symbols:
+            cached_quote = self.cache.get_quote(symbol)
+            if cached_quote:
+                batch_results[symbol] = cached_quote
+            else:
+                uncached_symbols.append(symbol)
+        
+        # Fetch uncached symbols from API
+        for symbol in uncached_symbols:
+            quote = self.get_quote(symbol)  # This will cache individual quotes
+            if quote:
+                batch_results[symbol] = quote
+        
+        # Cache the batch result
+        if batch_results:
+            self.cache.cache_batch_quotes(symbols, batch_results)
+        
+        return batch_results
     
     def get_top_gainers_losers(self) -> Dict:
         """
@@ -233,11 +345,20 @@ class FinnhubService:
     def is_low_float_stock(self, symbol: str, max_float: float = 10_000_000) -> bool:
         """
         Check if stock has low float (under specified amount)
+        Uses cached profile data when available
         """
-        profile = self.get_company_profile(symbol)
+        profile = self.get_company_profile(symbol)  # Uses cache
         if profile and 'float' in profile:
             return profile['float'] <= max_float
         return False
+    
+    def clear_symbol_cache(self, symbol: str) -> int:
+        """Clear all cached data for a specific symbol"""
+        return self.cache.clear_symbol_cache(symbol)
+    
+    def get_cache_stats(self) -> Dict:
+        """Get cache performance statistics"""
+        return self.cache.cache.get_cache_stats()
 
 # Create singleton instance
 finnhub_service = FinnhubService()
