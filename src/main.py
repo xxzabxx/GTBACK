@@ -44,6 +44,10 @@ def create_app(config_name=None):
     from src.routes.cache import cache_bp
     app.register_blueprint(cache_bp, url_prefix='/api/cache')
     
+    # Import and register scanner routes
+    from src.routes.scanners import scanners_bp
+    app.register_blueprint(scanners_bp, url_prefix='/api/scanners')
+    
     # JWT error handlers
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
