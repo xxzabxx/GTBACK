@@ -40,23 +40,28 @@ class ScannerService:
             return cached_result
             
         try:
-            # Get market movers and filter by Ross Cameron criteria
+            # Get market movers with pre-filtering
             stocks = await self._get_market_movers()
             momentum_stocks = []
             
             for stock in stocks:
                 try:
-                    # Get detailed stock data
-                    quote = await self._get_stock_quote(stock['symbol'])
-                    profile = await self._get_stock_profile(stock['symbol'])
+                    symbol = stock['symbol']
+                    quote = stock.get('quote')
+                    
+                    # Get additional data if not already available
+                    if not quote:
+                        quote = await self._get_stock_quote(symbol)
+                    
+                    profile = await self._get_stock_profile(symbol)
                     
                     if not quote or not profile:
                         continue
                         
-                    # Apply Ross Cameron momentum criteria
+                    # Apply strict Ross Cameron momentum criteria
                     if self._is_momentum_candidate(quote, profile):
                         momentum_data = {
-                            'symbol': stock['symbol'],
+                            'symbol': symbol,
                             'company_name': profile.get('name', ''),
                             'price': quote.get('c', 0),
                             'change': quote.get('d', 0),
@@ -65,14 +70,14 @@ class ScannerService:
                             'relative_volume': self._calculate_relative_volume(quote, profile),
                             'float': profile.get('shareOutstanding', 0),
                             'market_cap': profile.get('marketCapitalization', 0),
-                            'news_catalyst': await self._has_recent_news(stock['symbol']),
+                            'news_catalyst': await self._has_recent_news(symbol),
                             'ross_score': self._calculate_ross_score(quote, profile),
                             'timestamp': datetime.utcnow().isoformat()
                         }
                         momentum_stocks.append(momentum_data)
                         
                 except Exception as e:
-                    logger.warning(f"Error processing {stock['symbol']}: {e}")
+                    logger.warning(f"Error processing {stock.get('symbol', 'unknown')}: {e}")
                     continue
                     
             # Sort by Ross score (highest first)
@@ -80,7 +85,7 @@ class ScannerService:
             result = momentum_stocks[:limit]
             
             # Cache for 30 seconds
-            self.cache.set(cache_key, result, ttl_seconds=self.CACHE_TTL)
+            self.cache.set(cache_key, result, 30)
             return result
             
         except Exception as e:
@@ -356,14 +361,99 @@ class ScannerService:
         return round(score, 2)
     
     async def _get_market_movers(self) -> List[Dict]:
-        """Get market movers from Finnhub"""
+        """Get real market movers from Finnhub with price filtering"""
         try:
-            # Use Finnhub's stock symbols and filter for US stocks
-            symbols = await self._get_active_symbols()
-            return [{'symbol': symbol} for symbol in symbols[:100]]  # Top 100 active
+            # Get all US stock symbols from Finnhub
+            symbols = await self._get_us_stock_symbols()
+            
+            # Filter symbols by price range first to reduce API calls
+            filtered_stocks = []
+            
+            # Process in batches to respect API limits
+            batch_size = 50  # Process 50 stocks at a time
+            for i in range(0, min(len(symbols), 500), batch_size):  # Limit to 500 total for performance
+                batch = symbols[i:i + batch_size]
+                
+                for symbol in batch:
+                    try:
+                        # Get quote to check price range
+                        quote = self.finnhub.get_quote(symbol)
+                        if quote and quote.get('c'):  # Current price exists
+                            price = quote.get('c', 0)
+                            percent_change = quote.get('dp', 0)
+                            
+                            # Pre-filter by Ross Cameron criteria
+                            if (self.PRICE_MIN <= price <= self.PRICE_MAX and 
+                                percent_change >= 5.0):  # Lower threshold for initial filtering
+                                filtered_stocks.append({
+                                    'symbol': symbol,
+                                    'price': price,
+                                    'percent_change': percent_change,
+                                    'quote': quote
+                                })
+                                
+                    except Exception as e:
+                        logger.warning(f"Error filtering {symbol}: {e}")
+                        continue
+                
+                # Small delay to respect API rate limits
+                await asyncio.sleep(0.1)
+            
+            # Sort by percent change (highest first) and return top movers
+            filtered_stocks.sort(key=lambda x: x['percent_change'], reverse=True)
+            return filtered_stocks[:100]  # Top 100 movers
+            
         except Exception as e:
             logger.error(f"Error getting market movers: {e}")
-            return []
+            # Fallback to active symbols if API fails
+            fallback_symbols = await self._get_fallback_symbols()
+            return [{'symbol': symbol} for symbol in fallback_symbols[:50]]
+
+    async def _get_us_stock_symbols(self) -> List[str]:
+        """Get comprehensive list of US stock symbols from Finnhub"""
+        try:
+            # Use Finnhub's stock symbols endpoint
+            symbols_data = self.finnhub.get_stock_symbols('US')
+            
+            if symbols_data:
+                # Extract symbols and filter for common exchanges
+                symbols = []
+                for stock in symbols_data:
+                    symbol = stock.get('symbol', '')
+                    # Filter for main exchanges and avoid complex symbols
+                    if (symbol and 
+                        len(symbol) <= 5 and  # Avoid complex symbols
+                        '.' not in symbol and  # Avoid preferred shares
+                        '-' not in symbol and  # Avoid warrants
+                        symbol.isalpha()):     # Only letters
+                        symbols.append(symbol)
+                
+                return symbols[:2000]  # Limit to 2000 symbols for performance
+            
+        except Exception as e:
+            logger.warning(f"Error getting US symbols: {e}")
+        
+        # Fallback to expanded active symbols
+        return await self._get_fallback_symbols()
+
+    async def _get_fallback_symbols(self) -> List[str]:
+        """Fallback list of active symbols when API fails"""
+        # Expanded list focusing on small-cap and volatile stocks
+        return [
+            # Small cap momentum stocks
+            'AMC', 'GME', 'BBBY', 'SNDL', 'MULN', 'PROG', 'ATER', 'SPRT',
+            'IRNT', 'OPAD', 'GREE', 'PHUN', 'DWAC', 'BENE', 'MARK', 'MMAT',
+            'XELA', 'GNUS', 'NAKD', 'SIRI', 'ZSAN', 'JAGX', 'SHIP', 'TOPS',
+            'GLBS', 'DARE', 'AYTU', 'BIOC', 'VYNE', 'TNXP', 'ADMP', 'SENS',
+            'OCGN', 'NVAX', 'MRNA', 'BNTX', 'VXRT', 'INO', 'SRNE', 'CODX',
+            # Biotech small caps
+            'CTIC', 'DMTK', 'EIGR', 'FGEN', 'GTHX', 'HGEN', 'IMMP', 'KPTI',
+            'LPTX', 'MCRB', 'NKTR', 'OBSV', 'PGEN', 'QLGN', 'RGNX', 'SGMO',
+            'TGTX', 'URGN', 'VBIV', 'WKHS', 'XERS', 'YMAB', 'ZYME', 'ABUS',
+            # EV and tech small caps
+            'RIDE', 'NKLA', 'HYLN', 'GOEV', 'ARVL', 'LCID', 'RIVN', 'FSLY',
+            'PLTR', 'SNOW', 'CRWD', 'ZS', 'OKTA', 'DDOG', 'NET', 'ESTC'
+        ]
     
     async def _get_premarket_movers(self) -> List[Dict]:
         """Get pre-market movers"""

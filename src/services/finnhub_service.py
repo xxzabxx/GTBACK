@@ -356,8 +356,28 @@ class FinnhubService:
         """Clear all cached data for a specific symbol"""
         return self.cache.clear_symbol_cache(symbol)
     
+    def get_stock_symbols(self, exchange: str = 'US') -> List[Dict]:
+        """
+        Get list of stock symbols for a given exchange
+        Returns: List of stock symbols with metadata
+        """
+        cache_key = f"stock_symbols_{exchange}"
+        cached_symbols = self.cache.get(cache_key)
+        if cached_symbols:
+            return cached_symbols
+        
+        endpoint = "stock/symbol"
+        params = {"exchange": exchange}
+        
+        symbols_data = self._make_request(endpoint, params)
+        
+        if symbols_data:
+            # Cache for 1 hour (symbols don't change frequently)
+            self.cache.set(cache_key, symbols_data, 3600)
+        
+        return symbols_data if symbols_data else []
+    
     def get_cache_stats(self) -> Dict:
-        """Get cache performance statistics"""
         return self.cache.cache.get_cache_stats()
 
 # Create singleton instance
