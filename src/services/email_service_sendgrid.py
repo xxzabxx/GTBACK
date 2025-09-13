@@ -19,11 +19,11 @@ class EmailService:
             try:
                 from sendgrid import SendGridAPIClient
                 self.sendgrid_client = SendGridAPIClient(api_key=sendgrid_api_key)
-                current_app.logger.info("SendGrid client initialized successfully")
+                logging.info("SendGrid client initialized successfully")
             except Exception as e:
-                current_app.logger.warning(f"Failed to initialize SendGrid: {str(e)}")
+                logging.warning(f"Failed to initialize SendGrid: {str(e)}")
         else:
-            current_app.logger.warning("SENDGRID_API_KEY not found in environment variables")
+            logging.warning("SENDGRID_API_KEY not found in environment variables")
     
     def send_contact_form_email(self, form_data: Dict[str, Any]) -> bool:
         """
