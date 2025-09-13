@@ -169,17 +169,17 @@ class MarketDataCache:
     def __init__(self, cache_service: CacheService):
         self.cache = cache_service
         
-        # Cache TTL settings (in seconds)
+        # Cache TTL settings (in seconds) - Increased to reduce rate limiting
         self.TTL_SETTINGS = {
-            'quote': 30,           # Stock quotes - 30 seconds (real-time)
+            'quote': 120,          # Stock quotes - 2 minutes (reduced API calls)
             'profile': 3600,       # Company profiles - 1 hour (rarely changes)
             'news': 300,           # Market news - 5 minutes
             'company_news': 600,   # Company news - 10 minutes
             'candles': 900,        # Historical candles - 15 minutes
             'search': 1800,        # Symbol search - 30 minutes
             'market_status': 60,   # Market status - 1 minute
-            'scanner': 60,         # Scanner results - 1 minute
-            'batch_quotes': 30     # Batch quotes - 30 seconds
+            'scanner': 300,        # Scanner results - 5 minutes (reduced API calls)
+            'batch_quotes': 120    # Batch quotes - 2 minutes (reduced API calls)
         }
     
     def get(self, key: str) -> Optional[Any]:

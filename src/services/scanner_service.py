@@ -26,8 +26,8 @@ class ScannerService:
         self.MAX_FLOAT = 20_000_000  # 20M shares maximum
         self.PREFERRED_MAX_FLOAT = 10_000_000  # 10M preferred
         
-        # Scanner refresh intervals (seconds)
-        self.CACHE_TTL = 30  # 30 seconds for real-time feel
+        # Scanner refresh intervals (seconds) - Increased to reduce API calls
+        self.CACHE_TTL = 300  # 5 minutes to reduce rate limiting
         
     async def get_momentum_scanner(self, limit: int = 20) -> List[Dict[str, Any]]:
         """

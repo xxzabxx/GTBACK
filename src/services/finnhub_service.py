@@ -33,8 +33,8 @@ class FinnhubService:
         params['token'] = self.api_key
         
         try:
-            # Add a small delay to respect rate limits
-            time.sleep(0.1)  # 100ms delay between requests
+            # Add delay to respect rate limits - Increased to reduce 429 errors
+            time.sleep(0.5)  # 500ms delay between requests to prevent rate limiting
             
             response = self.session.get(f"{self.base_url}/{endpoint}", params=params)
             
