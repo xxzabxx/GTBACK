@@ -182,6 +182,14 @@ class MarketDataCache:
             'batch_quotes': 30     # Batch quotes - 30 seconds
         }
     
+    def get(self, key: str) -> Optional[Any]:
+        """Get a value from cache using the underlying cache service"""
+        return self.cache.get(key)
+    
+    def set(self, key: str, value: Any, ttl_seconds: int = 300) -> bool:
+        """Set a value in cache using the underlying cache service"""
+        return self.cache.set(key, value, ttl_seconds)
+    
     def cache_quote(self, symbol: str, quote_data: Dict) -> bool:
         """Cache stock quote data"""
         key = self._generate_key('quote', symbol)
