@@ -53,7 +53,7 @@ def create_app(config_name=None):
     app.register_blueprint(contact_bp, url_prefix='/api')
     
     # Initialize email service
-    from src.services.email_service import email_service
+    from src.services.email_service_sendgrid import email_service
     email_service.init_app(app)
     
     # JWT error handlers

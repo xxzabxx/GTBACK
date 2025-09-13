@@ -3,7 +3,7 @@ Contact form routes for handling email submissions.
 """
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.services.email_service import email_service
+from src.services.email_service_sendgrid import email_service
 import logging
 
 contact_bp = Blueprint('contact', __name__)
