@@ -79,26 +79,44 @@ def get_stock_candles(symbol):
     """
     Get historical candlestick data for charts
     Requires basic_charts permission (free tier)
+    Supports previous=true for previous trading day data
     """
     try:
         symbol = symbol.upper()
         resolution = request.args.get('resolution', 'D')  # D, 60, 30, 15, 5, 1
         days_back = int(request.args.get('days', 30))
+        previous = request.args.get('previous', 'false').lower() == 'true'
         
         # Validate resolution
         valid_resolutions = ['1', '5', '15', '30', '60', 'D', 'W', 'M']
         if resolution not in valid_resolutions:
             return jsonify({'error': 'Invalid resolution'}), 400
         
-        candle_data = finnhub_service.get_candles(symbol, resolution, days_back)
+        # Get candle data with previous day support
+        candle_data = finnhub_service.get_candles(symbol, resolution, days_back, previous)
         
         if not candle_data:
             return jsonify({'error': 'No candle data found'}), 404
         
+        # Convert to frontend-expected format (t, o, h, l, c, v)
+        formatted_data = {
+            't': candle_data.get('timestamps', []),
+            'o': candle_data.get('open', []),
+            'h': candle_data.get('high', []),
+            'l': candle_data.get('low', []),
+            'c': candle_data.get('close', []),
+            'v': candle_data.get('volume', []),
+            'symbol': symbol
+        }
+        
         return jsonify({
             'success': True,
-            'data': candle_data,
-            'timestamp': int(time.time())
+            'data': formatted_data,
+            'timestamp': int(time.time()),
+            'is_previous_session': previous,
+            'data_type': 'previous_close' if previous else 'live',
+            'resolution': resolution,
+            'days_back': days_back
         }), 200
         
     except Exception as e:

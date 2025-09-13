@@ -108,22 +108,35 @@ class FinnhubService:
         
         return {}
     
-    def get_candles(self, symbol: str, resolution: str = 'D', days_back: int = 30) -> Dict:
+    def get_candles(self, symbol: str, resolution: str = 'D', days_back: int = 30, previous: bool = False) -> Dict:
         """
         Get historical candlestick data with caching
         Args:
             symbol: Stock symbol
             resolution: 1, 5, 15, 30, 60, D, W, M
             days_back: Number of days to look back
+            previous: If True, get previous trading day data
         """
         # Try cache first
-        cached_candles = self.cache.get_candles(symbol, resolution, days_back)
+        cache_key_suffix = "_prev" if previous else ""
+        cached_candles = self.cache.get_candles(symbol, resolution, days_back, cache_key_suffix)
         if cached_candles:
             return cached_candles
         
-        # Fetch from API
-        end_time = int(time.time())
-        start_time = end_time - (days_back * 24 * 60 * 60)
+        # Calculate time range based on previous parameter
+        if previous:
+            # Get previous trading day data
+            end_time = int(time.time()) - (24 * 60 * 60)  # Yesterday
+            # Skip weekends - if it's Monday, go back to Friday
+            end_date = datetime.fromtimestamp(end_time)
+            while end_date.weekday() > 4:  # 0=Monday, 4=Friday
+                end_time -= (24 * 60 * 60)
+                end_date = datetime.fromtimestamp(end_time)
+            start_time = end_time - (days_back * 24 * 60 * 60)
+        else:
+            # Get current/recent data
+            end_time = int(time.time())
+            start_time = end_time - (days_back * 24 * 60 * 60)
         
         data = self._make_request('stock/candle', {
             'symbol': symbol,
