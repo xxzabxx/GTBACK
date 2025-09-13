@@ -40,21 +40,9 @@ def create_app(config_name=None):
     from src.routes.market import market_bp
     app.register_blueprint(market_bp, url_prefix='/api/market')
     
-    # Import and register cache routes
-    from src.routes.cache import cache_bp
-    app.register_blueprint(cache_bp, url_prefix='/api/cache')
-    
     # Import and register scanner routes
     from src.routes.scanners import scanners_bp
     app.register_blueprint(scanners_bp, url_prefix='/api/scanners')
-    
-    # Import and register contact routes
-    from src.routes.contact import contact_bp
-    app.register_blueprint(contact_bp, url_prefix='/api')
-    
-    # Initialize email service
-    from src.services.email_service_sendgrid import email_service
-    email_service.init_app(app)
     
     # JWT error handlers
     @jwt.expired_token_loader
@@ -119,3 +107,4 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_ENV') == 'development'
     app.run(host='0.0.0.0', port=port, debug=debug)
+
