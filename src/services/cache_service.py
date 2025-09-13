@@ -302,6 +302,20 @@ class MarketDataCache:
         pattern = f"market:*:{symbol}*"
         return self.cache.clear_pattern(pattern)
     
+    def cache_screener_data(self, screener_key: str, data: Any, ttl_seconds: int = 300) -> bool:
+        """Cache market screener data"""
+        key = self._generate_key('screener', screener_key)
+        return self.cache.set(key, data, ttl_seconds)
+    
+    def get_screener_data(self, screener_key: str) -> Optional[Any]:
+        """Get cached market screener data"""
+        key = self._generate_key('screener', screener_key)
+        return self.cache.get(key)
+    
+    def set_screener_data(self, screener_key: str, data: Any, ttl_seconds: int = 300) -> bool:
+        """Set market screener data in cache"""
+        return self.cache_screener_data(screener_key, data, ttl_seconds)
+    
     def clear_expired_cache(self) -> Dict:
         """Clear expired cache entries (for memory cache)"""
         if not self.cache.redis_available:
@@ -323,20 +337,6 @@ class MarketDataCache:
 
 # Create singleton instances
 cache_service = CacheService()
+
+# Global instance for use across the application
 market_cache = MarketDataCache(cache_service)
-
-
-    def cache_screener_data(self, screener_key: str, data: Any, ttl_seconds: int = 300) -> bool:
-        """Cache market screener data"""
-        key = self._generate_key('screener', screener_key)
-        return self.cache.set(key, data, ttl_seconds)
-    
-    def get_screener_data(self, screener_key: str) -> Optional[Any]:
-        """Get cached market screener data"""
-        key = self._generate_key('screener', screener_key)
-        return self.cache.get(key)
-    
-    def set_screener_data(self, screener_key: str, data: Any, ttl_seconds: int = 300) -> bool:
-        """Set market screener data in cache"""
-        return self.cache_screener_data(screener_key, data, ttl_seconds)
-
