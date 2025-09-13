@@ -39,15 +39,18 @@ class EmailService:
             bool: True if email sent successfully, False otherwise
         """
         try:
-            # Create email message
-            msg = Message(
-                subject=f"GrimmTrading Contact: {form_data.get('subject', 'No Subject')}",
-                recipients=[os.getenv('CONTACT_EMAIL', 'grimmdaytrading@gmail.com')],
-                reply_to=form_data.get('email')
-            )
-            
-            # Create email body
-            msg.body = f"""
+            # Try Flask-Mail first
+            if self.mail:
+                try:
+                    # Create email message
+                    msg = Message(
+                        subject=f"GrimmTrading Contact: {form_data.get('subject', 'No Subject')}",
+                        recipients=[os.getenv('CONTACT_EMAIL', 'grimmdaytrading@gmail.com')],
+                        reply_to=form_data.get('email')
+                    )
+                    
+                    # Create email body
+                    msg.body = f"""
 New contact form submission from GrimmTrading website:
 
 Name: {form_data.get('name', 'Not provided')}
@@ -60,47 +63,133 @@ Message:
 ---
 This email was sent from the GrimmTrading contact form.
 Reply directly to this email to respond to the user.
-            """
+                    """
+                    
+                    # Create HTML version
+                    msg.html = f"""
+                    <html>
+                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                            <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+                                New Contact Form Submission
+                            </h2>
+                            
+                            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="margin-top: 0; color: #1e40af;">Contact Details</h3>
+                                <p><strong>Name:</strong> {form_data.get('name', 'Not provided')}</p>
+                                <p><strong>Email:</strong> <a href="mailto:{form_data.get('email', '')}">{form_data.get('email', 'Not provided')}</a></p>
+                                <p><strong>Subject:</strong> {form_data.get('subject', 'Not provided')}</p>
+                            </div>
+                            
+                            <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                                <h3 style="margin-top: 0; color: #1e40af;">Message</h3>
+                                <p style="white-space: pre-wrap;">{form_data.get('message', 'No message provided')}</p>
+                            </div>
+                            
+                            <div style="margin-top: 20px; padding: 15px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                                <p style="margin: 0; font-size: 14px; color: #92400e;">
+                                    <strong>Note:</strong> This email was sent from the GrimmTrading contact form. 
+                                    Reply directly to this email to respond to the user.
+                                </p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    """
+                    
+                    # Send email
+                    self.mail.send(msg)
+                    current_app.logger.info(f"Contact form email sent successfully from {form_data.get('email')}")
+                    return True
+                    
+                except Exception as flask_mail_error:
+                    current_app.logger.warning(f"Flask-Mail failed: {str(flask_mail_error)}, trying fallback method")
+                    # Fall through to backup method
             
-            # Create HTML version
-            msg.html = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
-                        New Contact Form Submission
-                    </h2>
-                    
-                    <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <h3 style="margin-top: 0; color: #1e40af;">Contact Details</h3>
-                        <p><strong>Name:</strong> {form_data.get('name', 'Not provided')}</p>
-                        <p><strong>Email:</strong> <a href="mailto:{form_data.get('email', '')}">{form_data.get('email', 'Not provided')}</a></p>
-                        <p><strong>Subject:</strong> {form_data.get('subject', 'Not provided')}</p>
-                    </div>
-                    
-                    <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-                        <h3 style="margin-top: 0; color: #1e40af;">Message</h3>
-                        <p style="white-space: pre-wrap;">{form_data.get('message', 'No message provided')}</p>
-                    </div>
-                    
-                    <div style="margin-top: 20px; padding: 15px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
-                        <p style="margin: 0; font-size: 14px; color: #92400e;">
-                            <strong>Note:</strong> This email was sent from the GrimmTrading contact form. 
-                            Reply directly to this email to respond to the user.
-                        </p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-            
-            # Send email
-            self.mail.send(msg)
-            current_app.logger.info(f"Contact form email sent successfully from {form_data.get('email')}")
-            return True
+            # Fallback: Use direct SMTP with different configuration
+            return self._send_email_fallback(form_data)
             
         except Exception as e:
             current_app.logger.error(f"Failed to send contact form email: {str(e)}")
+            return False
+    
+    def _send_email_fallback(self, form_data: Dict[str, Any]) -> bool:
+        """
+        Fallback email method using direct SMTP with alternative ports
+        """
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            
+            # Try different SMTP configurations
+            smtp_configs = [
+                {'server': 'smtp.gmail.com', 'port': 587, 'use_tls': True},
+                {'server': 'smtp.gmail.com', 'port': 465, 'use_ssl': True},
+                {'server': 'smtp.gmail.com', 'port': 25, 'use_tls': True}
+            ]
+            
+            username = os.getenv('MAIL_USERNAME')
+            password = os.getenv('MAIL_PASSWORD')
+            
+            if not username or not password:
+                current_app.logger.error("Email credentials not configured")
+                return False
+            
+            for config in smtp_configs:
+                try:
+                    current_app.logger.info(f"Trying SMTP config: {config}")
+                    
+                    # Create message
+                    msg = MIMEMultipart('alternative')
+                    msg['Subject'] = f"GrimmTrading Contact: {form_data.get('subject', 'No Subject')}"
+                    msg['From'] = username
+                    msg['To'] = os.getenv('CONTACT_EMAIL', 'grimmdaytrading@gmail.com')
+                    msg['Reply-To'] = form_data.get('email', '')
+                    
+                    # Create text version
+                    text_body = f"""
+New contact form submission from GrimmTrading website:
+
+Name: {form_data.get('name', 'Not provided')}
+Email: {form_data.get('email', 'Not provided')}
+Subject: {form_data.get('subject', 'Not provided')}
+
+Message:
+{form_data.get('message', 'No message provided')}
+
+---
+This email was sent from the GrimmTrading contact form.
+                    """
+                    
+                    text_part = MIMEText(text_body, 'plain')
+                    msg.attach(text_part)
+                    
+                    # Connect and send
+                    if config.get('use_ssl'):
+                        server = smtplib.SMTP_SSL(config['server'], config['port'])
+                    else:
+                        server = smtplib.SMTP(config['server'], config['port'])
+                        if config.get('use_tls'):
+                            server.starttls()
+                    
+                    server.login(username, password)
+                    server.send_message(msg)
+                    server.quit()
+                    
+                    current_app.logger.info(f"Email sent successfully using {config}")
+                    return True
+                    
+                except Exception as smtp_error:
+                    current_app.logger.warning(f"SMTP config {config} failed: {str(smtp_error)}")
+                    continue
+            
+            # If all SMTP methods fail, log the submission for manual processing
+            current_app.logger.error(f"All email methods failed. Contact form data: {form_data}")
+            return False
+            
+        except Exception as e:
+            current_app.logger.error(f"Fallback email method failed: {str(e)}")
             return False
     
     def send_welcome_email(self, user_email: str, user_name: str) -> bool:
