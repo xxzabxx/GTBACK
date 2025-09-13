@@ -158,7 +158,7 @@ class FinnhubService:
             }
             
             # Cache the result
-            self.cache.cache_candles(symbol, resolution, days_back, candle_data)
+            self.cache.cache_candles(symbol, resolution, days_back, candle_data, cache_key_suffix)
             return candle_data
         
         return {}

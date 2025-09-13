@@ -222,14 +222,14 @@ class MarketDataCache:
         key = self._generate_key('company_news', symbol, days=days_back)
         return self.cache.get(key)
     
-    def cache_candles(self, symbol: str, resolution: str, days_back: int, candle_data: Dict) -> bool:
+    def cache_candles(self, symbol: str, resolution: str, days_back: int, candle_data: Dict, cache_key_suffix: str = "") -> bool:
         """Cache historical candle data"""
-        key = self._generate_key('candles', symbol, resolution=resolution, days=days_back)
+        key = self._generate_key('candles', symbol, resolution=resolution, days=days_back, suffix=cache_key_suffix)
         return self.cache.set(key, candle_data, self.TTL_SETTINGS['candles'])
     
-    def get_candles(self, symbol: str, resolution: str, days_back: int) -> Optional[Dict]:
+    def get_candles(self, symbol: str, resolution: str, days_back: int, cache_key_suffix: str = "") -> Optional[Dict]:
         """Get cached candle data"""
-        key = self._generate_key('candles', symbol, resolution=resolution, days=days_back)
+        key = self._generate_key('candles', symbol, resolution=resolution, days=days_back, suffix=cache_key_suffix)
         return self.cache.get(key)
     
     def cache_search(self, query: str, search_results: List[Dict]) -> bool:
