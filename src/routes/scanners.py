@@ -1,12 +1,13 @@
 """
 Stock Scanner Routes with Admin Controls and Tier Restrictions
 Implements Ross Cameron-style scanners with permission system
+Now using efficient market screening APIs to prevent rate limiting
 """
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models.user import User
-from src.services.scanner_service import ScannerService
+from src.services.scanner_service_new import EfficientScannerService
 from src.middleware.permissions import require_permission
 import psycopg2
 import os
@@ -24,7 +25,7 @@ def get_db_connection():
     return psycopg2.connect(database_url)
 
 scanners_bp = Blueprint('scanners', __name__)
-scanner_service = ScannerService()
+scanner_service = EfficientScannerService()  # Use new efficient service
 
 # Admin toggle settings for each scanner
 SCANNER_SETTINGS = {

@@ -44,7 +44,8 @@ class ScannerService:
             stocks = await self._get_market_movers()
             momentum_stocks = []
             
-            for stock in stocks:
+            # Process stocks sequentially to prevent API rate limiting
+            for i, stock in enumerate(stocks):
                 try:
                     symbol = stock['symbol']
                     quote = stock.get('quote')
@@ -75,6 +76,10 @@ class ScannerService:
                             'timestamp': datetime.utcnow().isoformat()
                         }
                         momentum_stocks.append(momentum_data)
+                    
+                    # Add delay between processing stocks to prevent rate limiting
+                    if i < len(stocks) - 1:  # Don't delay after the last stock
+                        await asyncio.sleep(0.1)  # 100ms delay between stocks
                         
                 except Exception as e:
                     logger.warning(f"Error processing {stock.get('symbol', 'unknown')}: {e}")

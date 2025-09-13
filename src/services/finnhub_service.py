@@ -343,25 +343,159 @@ class FinnhubService:
     
     def get_top_gainers_losers(self) -> Dict:
         """
-        Get top gainers and losers (US market)
-        Note: This endpoint might require premium subscription
+        Get top gainers, losers, and most active stocks
+        Uses Finnhub's stock screener API
         """
-        # This is a placeholder - Finnhub's free tier might not include this
-        # We would need to implement our own logic using quote data
-        return {
-            'gainers': [],
-            'losers': [],
-            'most_active': []
-        }
+        cache_key = "market_screener_gainers_losers"
+        cached_result = self.cache.get_screener_data(cache_key)
+        if cached_result:
+            return cached_result
+        
+        try:
+            # Get top gainers using stock screener
+            gainers_params = {
+                'metric': 'price_change_percentage',
+                'min_value': 5.0,  # Minimum 5% gain
+                'max_value': 1000.0,
+                'limit': 50
+            }
+            gainers_data = self._make_request('stock/screener', gainers_params)
+            
+            # Get most active stocks
+            active_params = {
+                'metric': 'volume',
+                'min_value': 100000,  # Minimum volume
+                'limit': 50
+            }
+            active_data = self._make_request('stock/screener', active_params)
+            
+            result = {
+                'gainers': gainers_data.get('result', []),
+                'losers': [],  # Can add losers logic if needed
+                'most_active': active_data.get('result', [])
+            }
+            
+            # Cache for 5 minutes
+            self.cache.set_screener_data(cache_key, result, ttl_seconds=300)
+            return result
+            
+        except Exception as e:
+            print(f"Error getting market screeners: {e}")
+            return {'gainers': [], 'losers': [], 'most_active': []}
     
-    def get_momentum_stocks(self, min_price: float = 2.0, max_price: float = 20.0) -> List[Dict]:
+    def get_momentum_stocks(self, min_price: float = 2.0, max_price: float = 20.0, min_change: float = 8.0) -> List[Dict]:
         """
-        Get momentum stocks matching Ross Cameron criteria
-        This is a custom implementation using available data
+        Get momentum stocks matching Ross Cameron criteria using stock screener
         """
-        # This would require multiple API calls and custom logic
-        # For now, return placeholder structure
-        return []
+        cache_key = f"momentum_stocks_{min_price}_{max_price}_{min_change}"
+        cached_result = self.cache.get_screener_data(cache_key)
+        if cached_result:
+            return cached_result
+        
+        try:
+            # Use stock screener to find momentum candidates
+            params = {
+                'metric': 'price_change_percentage',
+                'min_value': min_change,
+                'max_value': 1000.0,
+                'limit': 100
+            }
+            
+            screener_data = self._make_request('stock/screener', params)
+            momentum_stocks = []
+            
+            for stock in screener_data.get('result', []):
+                symbol = stock.get('symbol', '')
+                
+                # Apply price filter
+                current_price = stock.get('price', 0)
+                if min_price <= current_price <= max_price:
+                    momentum_stocks.append({
+                        'symbol': symbol,
+                        'price': current_price,
+                        'change_percentage': stock.get('change_percentage', 0),
+                        'volume': stock.get('volume', 0),
+                        'market_cap': stock.get('market_cap', 0)
+                    })
+            
+            # Cache for 2 minutes (shorter for momentum data)
+            self.cache.set_screener_data(cache_key, momentum_stocks, ttl_seconds=120)
+            return momentum_stocks
+            
+        except Exception as e:
+            print(f"Error getting momentum stocks: {e}")
+            return []
+    
+    def get_premarket_movers(self, min_gap: float = 5.0) -> List[Dict]:
+        """
+        Get pre-market gap stocks using market data
+        """
+        cache_key = f"premarket_movers_{min_gap}"
+        cached_result = self.cache.get_screener_data(cache_key)
+        if cached_result:
+            return cached_result
+        
+        try:
+            # Get market movers and filter for pre-market gaps
+            movers_data = self._make_request('stock/market-movers', {'exchange': 'US'})
+            
+            premarket_movers = []
+            for stock in movers_data.get('gainers', []):
+                symbol = stock.get('symbol', '')
+                change_pct = stock.get('dp', 0)  # Daily percentage change
+                
+                if change_pct >= min_gap:
+                    premarket_movers.append({
+                        'symbol': symbol,
+                        'price': stock.get('c', 0),
+                        'change': stock.get('d', 0),
+                        'change_percentage': change_pct,
+                        'volume': stock.get('v', 0),
+                        'previous_close': stock.get('pc', 0)
+                    })
+            
+            # Cache for 5 minutes
+            self.cache.set_screener_data(cache_key, premarket_movers, ttl_seconds=300)
+            return premarket_movers
+            
+        except Exception as e:
+            print(f"Error getting premarket movers: {e}")
+            return []
+    
+    def get_high_volume_stocks(self, min_volume: int = 500000) -> List[Dict]:
+        """
+        Get stocks with high volume using screener
+        """
+        cache_key = f"high_volume_stocks_{min_volume}"
+        cached_result = self.cache.get_screener_data(cache_key)
+        if cached_result:
+            return cached_result
+        
+        try:
+            params = {
+                'metric': 'volume',
+                'min_value': min_volume,
+                'limit': 100
+            }
+            
+            screener_data = self._make_request('stock/screener', params)
+            high_volume_stocks = []
+            
+            for stock in screener_data.get('result', []):
+                high_volume_stocks.append({
+                    'symbol': stock.get('symbol', ''),
+                    'price': stock.get('price', 0),
+                    'volume': stock.get('volume', 0),
+                    'change_percentage': stock.get('change_percentage', 0)
+                })
+            
+            # Cache for 3 minutes
+            self.cache.set_screener_data(cache_key, high_volume_stocks, ttl_seconds=180)
+            return high_volume_stocks
+            
+        except Exception as e:
+            print(f"Error getting high volume stocks: {e}")
+            return []
     
     def is_low_float_stock(self, symbol: str, max_float: float = 10_000_000) -> bool:
         """
