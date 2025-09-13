@@ -48,6 +48,14 @@ def create_app(config_name=None):
     from src.routes.scanners import scanners_bp
     app.register_blueprint(scanners_bp, url_prefix='/api/scanners')
     
+    # Import and register contact routes
+    from src.routes.contact import contact_bp
+    app.register_blueprint(contact_bp, url_prefix='/api')
+    
+    # Initialize email service
+    from src.services.email_service import email_service
+    email_service.init_app(app)
+    
     # JWT error handlers
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
