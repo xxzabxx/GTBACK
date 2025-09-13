@@ -26,14 +26,22 @@ class FinnhubService:
             raise ValueError("FINNHUB_API_KEY not found in environment variables")
     
     def _make_request(self, endpoint: str, params: Dict = None) -> Dict:
-        """Make authenticated request to Finnhub API"""
+        """Make authenticated request to Finnhub API with rate limiting"""
         if params is None:
             params = {}
         
         params['token'] = self.api_key
         
         try:
+            # Add a small delay to respect rate limits
+            time.sleep(0.1)  # 100ms delay between requests
+            
             response = self.session.get(f"{self.base_url}/{endpoint}", params=params)
+            
+            if response.status_code == 429:
+                print(f"Finnhub API rate limit hit for {endpoint}, using cached data if available")
+                return {}
+            
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
