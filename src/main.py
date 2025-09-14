@@ -44,6 +44,16 @@ def create_app(config_name=None):
     from src.routes.scanners import scanners_bp
     app.register_blueprint(scanners_bp, url_prefix='/api/scanners')
     
+    # Initialize chat functionality (modular addition)
+    try:
+        from src.chat_app import init_chat_app
+        socketio = init_chat_app(app)
+        app.socketio = socketio  # Store reference for access
+        app.logger.info("✅ Chat functionality enabled")
+    except Exception as e:
+        app.logger.warning(f"⚠️ Chat functionality disabled: {str(e)}")
+        app.socketio = None
+    
     # JWT error handlers
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
@@ -106,5 +116,12 @@ if __name__ == '__main__':
     # Use Railway's PORT environment variable or default to 5001
     port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_ENV') == 'development'
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    
+    # Run with Socket.IO if available, otherwise fallback to regular Flask
+    if hasattr(app, 'socketio') and app.socketio:
+        print("🚀 Starting server with Socket.IO support for chat...")
+        app.socketio.run(app, host='0.0.0.0', port=port, debug=debug)
+    else:
+        print("🚀 Starting server without Socket.IO (chat disabled)...")
+        app.run(host='0.0.0.0', port=port, debug=debug)
 
