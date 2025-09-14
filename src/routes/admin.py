@@ -97,11 +97,29 @@ def get_user_details(user_id):
 def update_user_tier(user_id):
     """Update user's subscription tier"""
     try:
-        user = User.query.filter_by(id=user_id).first_or_404()
+        print(f"DEBUG: Updating tier for user_id: {user_id}")
+        
+        # Convert string UUID to proper format if needed
+        try:
+            import uuid
+            if isinstance(user_id, str):
+                user_id = uuid.UUID(user_id)
+        except ValueError as ve:
+            print(f"DEBUG: Invalid UUID format: {ve}")
+            return jsonify({'error': 'Invalid user ID format'}), 400
+        
+        user = User.query.filter_by(id=user_id).first()
+        if not user:
+            print(f"DEBUG: User not found with id: {user_id}")
+            return jsonify({'error': 'User not found'}), 404
+            
         data = request.get_json()
+        print(f"DEBUG: Request data: {data}")
         
         new_tier = data.get('tier')
         expires_in_days = data.get('expires_in_days', 30)
+        
+        print(f"DEBUG: New tier: {new_tier}, expires_in_days: {expires_in_days}")
         
         if new_tier not in ['free', 'basic', 'pro', 'premium']:
             return jsonify({'error': 'Invalid tier'}), 400
@@ -116,16 +134,28 @@ def update_user_tier(user_id):
             user.subscription_expires = None
         
         user.updated_at = datetime.utcnow()
+        
+        print(f"DEBUG: About to commit changes")
         db.session.commit()
+        print(f"DEBUG: Changes committed successfully")
         
         return jsonify({
             'message': f'User tier updated to {new_tier}',
-            'user': user.to_dict(include_sensitive=True)
+            'user': {
+                'id': str(user.id),
+                'username': user.username,
+                'subscription_tier': user.subscription_tier,
+                'subscription_expires': user.subscription_expires.isoformat() if user.subscription_expires else None
+            }
         })
         
     except Exception as e:
+        print(f"DEBUG: Exception occurred: {str(e)}")
+        print(f"DEBUG: Exception type: {type(e)}")
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @admin_bp.route('/users/<user_id>/status', methods=['PUT'])
 @require_admin()
