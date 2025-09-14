@@ -47,3 +47,6 @@ psycopg2-binary
 aiohttp==3.12.15
 flask-socketio==5.3.6
 eventlet==0.33.3
+
+stripe==11.1.0
+

@@ -9,7 +9,12 @@ from flask_cors import CORS
 from src.database import db
 from src.routes.auth import auth_bp
 from src.routes.admin import admin_bp
+from src.routes.payments import payments_bp
 from src.config import config
+
+# Import all models to ensure they're registered with SQLAlchemy
+from src.models.user import User
+from src.models.subscription import Subscription, Payment, BillingAddress
 
 def create_app(config_name=None):
     """Application factory pattern"""
@@ -41,6 +46,7 @@ def create_app(config_name=None):
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(payments_bp, url_prefix='/api/payments')
     
     # Import and register market routes
     from src.routes.market import market_bp

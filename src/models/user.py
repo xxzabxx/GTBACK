@@ -1,6 +1,8 @@
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, DateTime, Text, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 from src.database import db
 import uuid
@@ -33,6 +35,11 @@ class User(db.Model):
     default_watchlist_id = Column(UUID(as_uuid=True))
     notification_preferences = Column(JSON, default={'email': True, 'push': True, 'sms': False})
     trading_preferences = Column(JSON, default={'risk_level': 'medium', 'position_size': 'small'})
+
+    # Relationships
+    subscription = relationship("Subscription", back_populates="user", uselist=False)
+    payments = relationship("Payment", back_populates="user")
+    billing_addresses = relationship("BillingAddress", back_populates="user")
 
     @staticmethod
     def create_user(username, email, password, first_name=None, last_name=None):
