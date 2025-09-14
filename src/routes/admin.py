@@ -103,7 +103,7 @@ def update_user_tier(user_id):
         new_tier = data.get('tier')
         expires_in_days = data.get('expires_in_days', 30)
         
-        if new_tier not in ['free', 'premium', 'pro']:
+        if new_tier not in ['free', 'basic', 'pro', 'premium']:
             return jsonify({'error': 'Invalid tier'}), 400
         
         # Update tier
@@ -191,8 +191,9 @@ def get_admin_stats():
         
         # Tier statistics
         free_users = User.query.filter(User.subscription_tier == 'free').count()
-        premium_users = User.query.filter(User.subscription_tier == 'premium').count()
+        basic_users = User.query.filter(User.subscription_tier == 'basic').count()
         pro_users = User.query.filter(User.subscription_tier == 'pro').count()
+        premium_users = User.query.filter(User.subscription_tier == 'premium').count()
         
         # Recent activity
         recent_users = User.query.filter(
@@ -218,8 +219,9 @@ def get_admin_stats():
             },
             'tiers': {
                 'free': free_users,
-                'premium': premium_users,
-                'pro': pro_users
+                'basic': basic_users,
+                'pro': pro_users,
+                'premium': premium_users
             },
             'content': {
                 'watchlists': total_watchlists,
