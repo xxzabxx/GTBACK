@@ -55,8 +55,8 @@ class ChatService:
                     return False
                 
                 # Check if user has premium access
-                if user.tier not in ['pro', 'premium']:
-                    current_app.logger.warning(f"Chat connection rejected: User {user.username} has tier {user.tier}")
+                if user.subscription_tier not in ['pro', 'premium']:
+                    current_app.logger.warning(f"Chat connection rejected: User {user.username} has tier {user.subscription_tier}")
                     emit('error', {'message': 'Premium subscription required for trading room chat'})
                     disconnect()
                     return False
@@ -69,7 +69,7 @@ class ChatService:
                 self.active_users[session_id] = {
                     'user_id': user.id,
                     'username': user.username,
-                    'tier': user.tier,
+                    'tier': user.subscription_tier,
                     'connected_at': datetime.utcnow(),
                     'last_activity': datetime.utcnow()
                 }
@@ -84,7 +84,7 @@ class ChatService:
                 # Notify room of new user
                 emit('user_joined', {
                     'username': user.username,
-                    'tier': user.tier,
+                    'tier': user.subscription_tier,
                     'timestamp': datetime.utcnow().isoformat()
                 }, room='trading_room', include_self=False)
                 
