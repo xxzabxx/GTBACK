@@ -120,7 +120,14 @@ if __name__ == '__main__':
     # Run with Socket.IO if available, otherwise fallback to regular Flask
     if hasattr(app, 'socketio') and app.socketio:
         print("🚀 Starting server with Socket.IO support for chat...")
-        app.socketio.run(app, host='0.0.0.0', port=port, debug=debug)
+        # Allow Werkzeug in production for Railway deployment
+        app.socketio.run(
+            app, 
+            host='0.0.0.0', 
+            port=port, 
+            debug=debug,
+            allow_unsafe_werkzeug=True  # Required for Railway production deployment
+        )
     else:
         print("🚀 Starting server without Socket.IO (chat disabled)...")
         app.run(host='0.0.0.0', port=port, debug=debug)
