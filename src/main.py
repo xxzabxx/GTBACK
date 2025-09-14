@@ -32,6 +32,12 @@ def create_app(config_name=None):
         }
     })
     
+    # Import and register auth routes
+    from src.routes.auth import auth_bp
+    
+    # Import and register admin routes
+    from src.routes.admin import admin_bp
+    
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
@@ -43,10 +49,6 @@ def create_app(config_name=None):
     # Import and register scanner routes
     from src.routes.scanners import scanners_bp
     app.register_blueprint(scanners_bp, url_prefix='/api/scanners')
-    
-    # Import and register admin routes
-    from src.routes.admin import admin_bp
-    app.register_blueprint(admin_bp, url_prefix='/api/admin')
     
     # Initialize chat functionality (modular addition)
     try:
