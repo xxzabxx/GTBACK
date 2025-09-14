@@ -44,6 +44,10 @@ def create_app(config_name=None):
     from src.routes.scanners import scanners_bp
     app.register_blueprint(scanners_bp, url_prefix='/api/scanners')
     
+    # Import and register admin routes
+    from src.routes.admin import admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    
     # Initialize chat functionality (modular addition)
     try:
         from src.chat_app import init_chat_app
