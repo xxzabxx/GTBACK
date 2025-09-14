@@ -10,13 +10,15 @@ from src.services.chat_service import chat_service
 def init_chat_app(app):
     """Initialize chat functionality with the Flask app"""
     
-    # Initialize Socket.IO with the app
+    # Initialize Socket.IO with the app (Railway-compatible configuration)
     socketio = SocketIO(
         app,
         cors_allowed_origins=app.config.get('CORS_ORIGINS', '*'),
-        async_mode='eventlet',
-        logger=True,
-        engineio_logger=True
+        async_mode='threading',  # Use threading instead of eventlet for Railway
+        logger=False,  # Disable verbose logging for production
+        engineio_logger=False,
+        ping_timeout=60,
+        ping_interval=25
     )
     
     # Initialize chat service with Socket.IO
