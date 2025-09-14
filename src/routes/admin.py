@@ -92,7 +92,7 @@ def get_user_details(user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@admin_bp.route('/users/<int:user_id>/tier', methods=['PUT'])
+@admin_bp.route('/users/<user_id>/tier', methods=['PUT'])
 @require_admin()
 def update_user_tier(user_id):
     """Update user's subscription tier"""
@@ -127,7 +127,7 @@ def update_user_tier(user_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@admin_bp.route('/users/<int:user_id>/status', methods=['PUT'])
+@admin_bp.route('/users/<user_id>/status', methods=['PUT'])
 @require_admin()
 def update_user_status(user_id):
     """Update user's active status"""
@@ -153,7 +153,7 @@ def update_user_status(user_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@admin_bp.route('/users/<int:user_id>/admin', methods=['PUT'])
+@admin_bp.route('/users/<user_id>/admin', methods=['PUT'])
 @require_admin()
 def update_admin_status(user_id):
     """Grant or revoke admin privileges"""
@@ -276,7 +276,7 @@ def get_tier_info():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@admin_bp.route('/users/<user_id>', methods=['DELETE'])
 @require_admin()
 def delete_user(user_id):
     """Delete a user account (soft delete by deactivating)"""
