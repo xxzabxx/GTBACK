@@ -95,7 +95,7 @@ def get_user_details(user_id):
 @admin_bp.route('/users/<user_id>/tier', methods=['PUT'])
 @require_admin()
 def update_user_tier(user_id):
-    """Update user's subscription tier"""
+    """Update user's subscription tier - supports free, basic, pro, premium"""
     try:
         print(f"DEBUG: Updating tier for user_id: {user_id}")
         
