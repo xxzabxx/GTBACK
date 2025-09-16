@@ -114,6 +114,30 @@ def add_radio_log(call_id):
         logger.error(f"Error adding radio log: {e}")
         return jsonify({'error': 'Failed to add radio log'}), 500
 
+@cad_bp.route('/calls/<call_id>/additional-comments', methods=['POST'])
+def update_additional_comments(call_id):
+    """Update additional comments for a call"""
+    try:
+        call = CADCall.query.get(call_id)
+        if not call:
+            return jsonify({'error': 'Call not found'}), 404
+        
+        data = request.get_json()
+        comments = data.get('comments', '')
+        
+        call.additional_comments = comments
+        call.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Additional comments updated successfully',
+            'call': call.to_dict()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating additional comments: {e}")
+        return jsonify({'error': 'Failed to update additional comments'}), 500
+
 @cad_bp.route('/calls/<call_id>/additional-unit', methods=['POST'])
 def add_additional_unit(call_id):
     """Add an additional unit to a call"""
